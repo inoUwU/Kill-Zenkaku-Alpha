@@ -3,12 +3,18 @@ package main
 import (
 	"fmt"
 	"github.com/getlantern/systray"
-	"golang.org/x/sys/windows"
 	"os"
-	"unsafe"
+	"syscall"
+	"time"
 )
 
-// https://dev.to/osuka42/building-a-simple-system-tray-app-with-go-899
+const (
+	WM_IME_CONTROL        int = 0x283
+	IMC_GETCONVERSIONMODE int = 1
+	IMC_GETOPENSTATUS     int = 5
+	IMC_SETCONVERSIONMODE int = 6
+	IME_ZENKAKU_Alpha     int = 8
+)
 
 func main() {
 	systray.Run(onReady, onExit)
@@ -38,65 +44,79 @@ func getIcon(s string) []byte {
 	return b
 }
 
-// kill zenkaku
 func killing() {
-	mKill := systray.AddMenuItem("Start kill", "Start kill")
-	user32 := windows.NewLazyDLL("user32.dll")
-	getWindow := user32.NewProc("GetWindowThreadProcessId")
-	// getContext := windows.NewLazyDLL("imm32.dll").NewProc("ImmGetContext")
-	// getTickCount := windows.NewLazyDLL("imm32.dll").NewProc("ImmGetConversionStatus")
+	mKill := systray.AddMenuItem("Stop Kill", "Stop Kill")
 
-	// 起動時間を取得
-	// r, b, _ := getTickCount.Call()
-	a, _, _ := getWindow.Call(uintptr(0))
-	fmt.Println(a)
+	user32, err := syscall.LoadDLL("user32.dll")
+	if err != nil {
+		panic(err)
+	}
+	defer user32.Release()
+
+	imm32, err := syscall.LoadDLL("imm32.dll")
+	if err != nil {
+		panic(err)
+	}
+	defer imm32.Release()
+
+	procGetForegroundWindow, err := user32.FindProc("GetForegroundWindow")
+	if err != nil {
+		panic(err)
+	}
+
+	hwnd, _, _ := procGetForegroundWindow.Call()
+
+	immGetDefaultIMeWNd, err := imm32.FindProc("ImmGetDefaultIMEWnd")
+	if err != nil {
+		panic(err)
+	}
+
+	imwd, _, _ := immGetDefaultIMeWNd.Call(hwnd)
+
+	sendMessage, err := user32.FindProc("SendMessageA")
+	if err != nil {
+		panic(err)
+	}
+
+	handleImm := func() {
+		imeConvMode, _, _ := sendMessage.Call(imwd, uintptr(WM_IME_CONTROL), uintptr(IMC_GETCONVERSIONMODE), uintptr(0))
+		imeState, _, _ := sendMessage.Call(imwd, uintptr(WM_IME_CONTROL), uintptr(IMC_GETOPENSTATUS), uintptr(0))
+
+		imeEnabled := imeState != 0
+
+		if imeEnabled && imeConvMode == uintptr(IME_ZENKAKU_Alpha) {
+			sendMessage.Call(imwd, uintptr(WM_IME_CONTROL), uintptr(IMC_SETCONVERSIONMODE), uintptr(0))
+		}
+	}
+
+	run := true
+	toggle := func() {
+		if run {
+			mKill.SetTitle("Stop Kill")
+			mKill.SetTooltip("Stop kill")
+
+			run = false
+		} else {
+			mKill.SetTitle("Start Kill")
+			mKill.SetTooltip("Start kill")
+			run = true
+		}
+	}
 
 	go func() {
-
-		run := true
-		toggle := func() {
-			if run {
-				mKill.SetTitle("Stop Kill")
-				mKill.SetTooltip("Stop kill")
-
-				run = false
-			} else {
-				mKill.SetTitle("Start Kill")
-				mKill.SetTooltip("Start kill")
-
-				run = true
-			}
-		}
-		toggle()
-
 		for {
 			<-mKill.ClickedCh
 			toggle()
-			fmt.Println("Hello")
+		}
+	}()
+
+	ticker := time.NewTicker(time.Millisecond * 100)
+	defer ticker.Stop()
+	go func() {
+		for {
+			if run {
+				handleImm()
+			}
 		}
 	}()
 }
-
-type HWND uintptr
-
-func (t HWND) uintptr() uintptr {
-	return uintptr(t)
-}
-
-type LPCTSTR string
-
-func (t LPCTSTR) uintptr() uintptr {
-	return uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(string(t))))
-}
-
-type UINT uint32
-type MBType UINT
-
-func (t MBType) uintptr() uintptr {
-	return uintptr(t)
-}
-
-const (
-	MBTypeOK MBType = 0x00000000
-	// 以下略
-)
