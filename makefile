@@ -5,4 +5,4 @@ debug:
 	go build -o debug.exe main.go
 
 build:
-	go build -ldflags -H=windowsgui -o KillZenkakuAlpha.exe main.go
+	go build -ldflags -H=windowsgui -o ./build/KillZenkakuAlpha.exe
