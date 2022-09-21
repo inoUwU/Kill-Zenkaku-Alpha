@@ -17,11 +17,13 @@ var (
 )
 
 const (
-	IME_CONTROL       int = 0x283
-	GETCONVERSIONMODE int = 1
-	GETOPENSTATUS     int = 5
-	SETCONVERSIONMODE int = 6
-	ZENKAKU_ALPHA     int = 8
+	IME_CONTROL       int    = 0x283
+	GETCONVERSIONMODE int    = 1
+	GETOPENSTATUS     int    = 5
+	SETCONVERSIONMODE int    = 6
+	ZENKAKU_ALPHA     int    = 8
+	START             string = "Start Kill"
+	STOP              string = "Stop kill"
 )
 
 func main() {
@@ -32,7 +34,7 @@ func onReady() {
 	systray.SetIcon(getIcon("assets/icon128.ico"))
 	systray.SetTitle("KillZenkakuAlpha")
 	systray.SetTooltip("KillZenkakuAlpha")
-	killing()
+	kill()
 	mQuit := systray.AddMenuItem("Quit", "Quit app")
 	go func() {
 		<-mQuit.ClickedCh
@@ -52,18 +54,17 @@ func getIcon(s string) []byte {
 	return b
 }
 
-func killing() {
-	mKill := systray.AddMenuItem("Stop Kill", "Stop Kill")
+func kill() {
+	mKill := systray.AddMenuItem(STOP, STOP)
 
 	handleImm := func() {
 		hwnd, _, _ := getForegroundWindow.Call()
 		imwd, _, _ := immGetDefaultIMeWNd.Call(hwnd)
-		imeConvMode, _, _ := sendMessage.Call(imwd, uintptr(IME_CONTROL), uintptr(GETCONVERSIONMODE), uintptr(0))
+		imeMode, _, _ := sendMessage.Call(imwd, uintptr(IME_CONTROL), uintptr(GETCONVERSIONMODE), uintptr(0))
 		imeState, _, _ := sendMessage.Call(imwd, uintptr(IME_CONTROL), uintptr(GETOPENSTATUS), uintptr(0))
-
 		imeEnabled := imeState != 0
-		println(imeState)
-		if imeEnabled && imeConvMode == uintptr(ZENKAKU_ALPHA) {
+
+		if imeEnabled && imeMode == uintptr(ZENKAKU_ALPHA) {
 			sendMessage.Call(imwd, uintptr(IME_CONTROL), uintptr(SETCONVERSIONMODE), uintptr(0))
 		}
 	}
@@ -71,13 +72,13 @@ func killing() {
 	run := true
 	toggle := func() {
 		if run {
-			mKill.SetTitle("Start Kill")
-			mKill.SetTooltip("Start kill")
+			mKill.SetTitle(START)
+			mKill.SetTooltip(START)
 
 			run = false
 		} else {
-			mKill.SetTitle("Stop Kill")
-			mKill.SetTooltip("Stop kill")
+			mKill.SetTitle(STOP)
+			mKill.SetTooltip(STOP)
 			run = true
 		}
 	}
@@ -93,9 +94,8 @@ func killing() {
 		for {
 			if run {
 				handleImm()
-				// 0.25秒
-				time.Sleep(time.Millisecond * 250)
 			}
+			time.Sleep(time.Millisecond * 200)
 		}
 	}()
 }
