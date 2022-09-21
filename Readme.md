@@ -1,1 +1,2 @@
-# kill zenkaku Alpha
+# kill zenkaku Alpha　　
+全角英数字入力絶対〇すマン
