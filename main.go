@@ -22,8 +22,10 @@ const (
 	GETOPENSTATUS     int    = 5
 	SETCONVERSIONMODE int    = 6
 	ZENKAKU_ALPHA     int    = 8
+	APP_NAME          string = "KillZenkakuAlpha"
 	START             string = "Start Kill"
 	STOP              string = "Stop kill"
+	QUIT              string = "Quit"
 )
 
 func main() {
@@ -32,10 +34,10 @@ func main() {
 
 func onReady() {
 	systray.SetIcon(getIcon("assets/icon128.ico"))
-	systray.SetTitle("KillZenkakuAlpha")
-	systray.SetTooltip("KillZenkakuAlpha")
+	systray.SetTitle(APP_NAME)
+	systray.SetTooltip(APP_NAME)
 	kill()
-	mQuit := systray.AddMenuItem("Quit", "Quit app")
+	mQuit := systray.AddMenuItem(QUIT, QUIT)
 	go func() {
 		<-mQuit.ClickedCh
 		systray.Quit()
