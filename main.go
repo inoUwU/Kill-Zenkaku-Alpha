@@ -33,7 +33,7 @@ func main() {
 }
 
 func onReady() {
-	systray.SetIcon(getIcon("assets/icon128.ico"))
+	systray.SetIcon(getIcon("assets/icon.ico"))
 	systray.SetTitle(APP_NAME)
 	systray.SetTooltip(APP_NAME)
 	kill()
