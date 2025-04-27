@@ -1,12 +1,14 @@
 package main
 
 import (
-	"fmt"
+	_ "embed"
 	"github.com/getlantern/systray"
-	"os"
 	"syscall"
 	"time"
 )
+
+//go:embed assets/icon.ico
+var iconData []byte
 
 var (
 	user32              = syscall.NewLazyDLL("user32.dll")
@@ -33,7 +35,7 @@ func main() {
 }
 
 func onReady() {
-	systray.SetIcon(getIcon("assets/icon.ico"))
+	systray.SetIcon(iconData)
 	systray.SetTitle(APP_NAME)
 	systray.SetTooltip(APP_NAME)
 	kill()
@@ -46,14 +48,6 @@ func onReady() {
 
 func onExit() {
 	// Cleaning stuff here.
-}
-
-func getIcon(s string) []byte {
-	b, err := os.ReadFile(s)
-	if err != nil {
-		fmt.Print(err)
-	}
-	return b
 }
 
 func kill() {
